@@ -74,6 +74,9 @@ Then run the app without runtime command-line options:
 ./build/cv
 ```
 
+To start the same Pi build automatically after the Raspberry Pi desktop logs in,
+see `docs/raspberry_pi_startup.md`.
+
 The program opens this GStreamer pipeline internally:
 
 ```text

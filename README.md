@@ -40,6 +40,12 @@ Deploy, build, and run:
 .\scripts\deploy-pi.ps1 -Run
 ```
 
+Deploy, build, and install Raspberry Pi desktop autostart:
+
+```powershell
+.\scripts\deploy-pi.ps1 -InstallAutostart
+```
+
 The script pushes the current clean local branch to GitHub, SSHs to
 `pi@192.168.0.210`, runs `git pull --ff-only` in `/home/pi/mv`, configures with
 Ninja, and builds on the Pi. The same commands are available in VS Code as:
@@ -49,6 +55,9 @@ Ninja, and builds on the Pi. The same commands are available in VS Code as:
 
 For a reusable setup guide that can be applied to other projects, see
 `docs/git_ssh_raspberry_pi_deploy_workflow.md`.
+
+To start the tracker automatically when the Raspberry Pi desktop logs in, see
+`docs/raspberry_pi_startup.md`.
 
 ## Configure CRSF
 

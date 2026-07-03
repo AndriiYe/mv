@@ -6,6 +6,7 @@ param(
     [string]$Generator = "Ninja",
     [string]$Target = "cv",
     [switch]$Run,
+    [switch]$InstallAutostart,
     [switch]$SkipPush
 )
 
@@ -50,6 +51,10 @@ $remoteCommands = @(
     "cmake -S . -B '$BuildDir' -G '$Generator' -DCMAKE_BUILD_TYPE=Release",
     "cmake --build '$BuildDir' -j`$(nproc)"
 )
+
+if ($InstallAutostart) {
+    $remoteCommands += "bash scripts/install-pi-desktop-autostart.sh"
+}
 
 if ($Run) {
     $remoteCommands += "./$BuildDir/$Target"
