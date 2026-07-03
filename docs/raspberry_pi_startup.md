@@ -28,6 +28,14 @@ sudo reboot
 The runner starts `./build/cv` from the project directory, so `config.json` can
 stay in the project root next to the build directory.
 
+To start the OpenCV window fullscreen, set this in `config.json`:
+
+```json
+"display": {
+  "fullscreen": true
+}
+```
+
 ## Enable Desktop Autologin
 
 Desktop autostart runs after login. If the Pi should start the tracker without

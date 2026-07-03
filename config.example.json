@@ -26,6 +26,9 @@
       "baudrate": "CRSF baud rate. Common value is 420000.",
       "baud": "Alias for baudrate."
     },
+    "display_fields": {
+      "fullscreen": "Set to true to open the OpenCV preview window fullscreen."
+    },
     "valid_config_fields": [
       "capture.mode",
       "capture.source",
@@ -40,7 +43,8 @@
       "capture.screen_height",
       "crsf.device",
       "crsf.baudrate",
-      "crsf.baud"
+      "crsf.baud",
+      "display.fullscreen"
     ],
     "examples": {
       "camera": "Set capture.mode to camera and camera_index to 0.",
@@ -66,5 +70,9 @@
     "_comment": "Leave device empty to disable CRSF.",
     "device": "COM47",
     "baudrate": 420000
+  },
+  "display": {
+    "_comment": "Set fullscreen to true on Raspberry Pi desktop autostart.",
+    "fullscreen": false
   }
 }

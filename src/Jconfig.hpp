@@ -24,9 +24,14 @@ struct RcSettings {
     int baudrate = 420000;
 };
 
+struct DisplaySettings {
+    bool fullscreen = false;
+};
+
 struct AppSettings {
     CaptureSettings capture;
     RcSettings rc;
+    DisplaySettings display;
 };
 
 class Jconfig {

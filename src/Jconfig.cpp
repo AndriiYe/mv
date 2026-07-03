@@ -2,6 +2,7 @@
 
 #include <opencv2/core/persistence.hpp>
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <stdexcept>
 #include <utility>
@@ -116,6 +117,44 @@ void read_config_int(
     value_node >> target;
 }
 
+void read_config_bool(
+    const cv::FileNode& object_node,
+    const std::string& key,
+    bool& target,
+    const std::string& config_path
+) {
+    const cv::FileNode value_node = object_node[key];
+    if (value_node.empty()) {
+        return;
+    }
+    if (value_node.isInt()) {
+        int value = 0;
+        value_node >> value;
+        target = value != 0;
+        return;
+    }
+    if (value_node.isString()) {
+        std::string value;
+        value_node >> value;
+        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+
+        if (value == "true" || value == "1" || value == "yes" || value == "on") {
+            target = true;
+            return;
+        }
+        if (value == "false" || value == "0" || value == "no" || value == "off") {
+            target = false;
+            return;
+        }
+    }
+
+    throw std::runtime_error(
+        "Config file '" + config_path + "' field '" + key + "' must be a boolean, 0/1, or true/false string."
+    );
+}
+
 void apply_capture_mode(CaptureSettings& capture, const std::string& mode, const std::string& config_path) {
     if (mode == "video") {
         capture.use_camera_index = false;
@@ -209,6 +248,14 @@ void apply_rc_config(AppSettings& settings, const cv::FileNode& rc_node, const s
     read_config_int(rc_node, "baud", settings.rc.baudrate, config_path);
 }
 
+void apply_display_config(AppSettings& settings, const cv::FileNode& display_node, const std::string& config_path) {
+    if (!display_node.isMap()) {
+        throw std::runtime_error("Config file '" + config_path + "' field 'display' must be an object.");
+    }
+
+    read_config_bool(display_node, "fullscreen", settings.display.fullscreen, config_path);
+}
+
 } // namespace
 
 Jconfig::Jconfig(std::string config_path)
@@ -244,6 +291,11 @@ AppSettings Jconfig::load() const {
     const cv::FileNode crsf_node = config["crsf"];
     if (!crsf_node.empty()) {
         apply_rc_config(settings, crsf_node, config_path_);
+    }
+
+    const cv::FileNode display_node = config["display"];
+    if (!display_node.empty()) {
+        apply_display_config(settings, display_node, config_path_);
     }
 
     return settings;

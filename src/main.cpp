@@ -216,7 +216,10 @@ int main() {
     }
 
     const std::string window_name = "Lucas-Kanade Optical Flow";
-    cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE);
+    cv::namedWindow(window_name, settings.display.fullscreen ? cv::WINDOW_NORMAL : cv::WINDOW_AUTOSIZE);
+    if (settings.display.fullscreen) {
+        cv::setWindowProperty(window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+    }
 
     cv::Mat frame;
     cv::Mat gray;

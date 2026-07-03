@@ -128,6 +128,14 @@ When `capture.mode` is `screen-region`, the capture position can be adjusted
 while the app is running with `W`/`A`/`S`/`D` or the arrow keys. The region moves
 10 pixels per key press and keeps the configured width and height.
 
+To open the preview window fullscreen, add:
+
+```json
+"display": {
+  "fullscreen": true
+}
+```
+
 With that file present, run the app without the long command line:
 
 ```powershell
