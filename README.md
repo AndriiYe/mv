@@ -47,6 +47,9 @@ Ninja, and builds on the Pi. The same commands are available in VS Code as:
 - `Deploy: Raspberry Pi build`
 - `Deploy: Raspberry Pi build and run`
 
+For a reusable setup guide that can be applied to other projects, see
+`docs/git_ssh_raspberry_pi_deploy_workflow.md`.
+
 ## Configure CRSF
 
 CRSF is configured through `config.json`. Windows serial ports look like this:
