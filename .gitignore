@@ -1,0 +1,43 @@
+# CMake build outputs
+build/
+build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Visual Studio / MSVC artifacts
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.exp
+*.res
+*.manifest
+
+# Linux / Raspberry Pi build artifacts
+*.o
+*.a
+*.so
+
+# VS Code local state
+.vscode/.cmake/
+.vscode/c_cpp_properties.json
+
+# Local app runtime config
+config.json
+
+# Local media and captures
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.png
+*.jpg
+*.jpeg
+
+# OS/editor noise
+Thumbs.db
+.DS_Store

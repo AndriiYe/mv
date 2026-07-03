@@ -1,0 +1,70 @@
+{
+  "_help": {
+    "_comment": "JSON does not support // comments, so these _help and _comment fields are real JSON fields. cv.exe ignores them.",
+    "capture_modes": [
+      "camera",
+      "video",
+      "pi-camera",
+      "screen",
+      "screen-virtual",
+      "screen-region"
+    ],
+    "capture_fields": {
+      "mode": "Selects active source: camera, video, pi-camera, screen, screen-virtual, or screen-region.",
+      "source": "Video file path used when mode is video.",
+      "camera_index": "Camera number used when mode is camera. Usually 0 for first camera, 1 for second.",
+      "width": "Requested capture width for camera or pi-camera.",
+      "height": "Requested capture height for camera or pi-camera.",
+      "fps": "Requested capture FPS for camera or pi-camera.",
+      "screen_left": "Left X position used when mode is screen-region.",
+      "screen_top": "Top Y position used when mode is screen-region.",
+      "screen_width": "Region width used when mode is screen-region.",
+      "screen_height": "Region height used when mode is screen-region."
+    },
+    "crsf_fields": {
+      "device": "Serial port, for example COM47 on Windows or /dev/ttyAMA0 on Raspberry Pi.",
+      "baudrate": "CRSF baud rate. Common value is 420000.",
+      "baud": "Alias for baudrate."
+    },
+    "valid_config_fields": [
+      "capture.mode",
+      "capture.source",
+      "capture.video_source",
+      "capture.camera_index",
+      "capture.width",
+      "capture.height",
+      "capture.fps",
+      "capture.screen_left",
+      "capture.screen_top",
+      "capture.screen_width",
+      "capture.screen_height",
+      "crsf.device",
+      "crsf.baudrate",
+      "crsf.baud"
+    ],
+    "examples": {
+      "camera": "Set capture.mode to camera and camera_index to 0.",
+      "video": "Set capture.mode to video and source to a video file path.",
+      "screen_region": "Set capture.mode to screen-region and adjust screen_left, screen_top, screen_width, screen_height.",
+      "pi_camera": "Set capture.mode to pi-camera, usually with width 640, height 480, fps 30."
+    }
+  },
+  "capture": {
+    "_comment": "Change only mode to switch active source. Other fields can stay here for later use.",
+    "mode": "camera",
+    "source": "C:/VScode_projects/cv/src/w22.mp4",
+    "camera_index": 0,
+    "width": 640,
+    "height": 480,
+    "fps": 30,
+    "screen_left": 100,
+    "screen_top": 100,
+    "screen_width": 800,
+    "screen_height": 600
+  },
+  "crsf": {
+    "_comment": "Leave device empty to disable CRSF.",
+    "device": "COM47",
+    "baudrate": 420000
+  }
+}
