@@ -11,10 +11,13 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cmath>
+#include <cctype>
 #include <exception>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -55,6 +58,34 @@ bool open_screen_capture(ScreenCapture& screen, const CaptureSettings& settings)
     }
 
     return screen.open_primary();
+}
+
+std::optional<bool> read_bool_env(const char* name) {
+    const char* raw_value = std::getenv(name);
+    if (raw_value == nullptr || raw_value[0] == '\0') {
+        return std::nullopt;
+    }
+
+    std::string value(raw_value);
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    if (value == "1" || value == "true" || value == "yes" || value == "on") {
+        return true;
+    }
+    if (value == "0" || value == "false" || value == "no" || value == "off") {
+        return false;
+    }
+
+    std::cerr << "Warning: ignoring unsupported CV_FULLSCREEN value '" << raw_value
+              << "'. Use 1/0, true/false, yes/no, or on/off." << std::endl;
+    return std::nullopt;
+}
+
+bool should_start_fullscreen(const DisplaySettings& display_settings) {
+    const std::optional<bool> env_fullscreen = read_bool_env("CV_FULLSCREEN");
+    return env_fullscreen.value_or(display_settings.fullscreen);
 }
 
 bool move_screen_region_from_key(ScreenCapture& screen, int key) {
@@ -216,8 +247,9 @@ int main() {
     }
 
     const std::string window_name = "Lucas-Kanade Optical Flow";
-    cv::namedWindow(window_name, settings.display.fullscreen ? cv::WINDOW_NORMAL : cv::WINDOW_AUTOSIZE);
-    if (settings.display.fullscreen) {
+    const bool fullscreen = should_start_fullscreen(settings.display);
+    cv::namedWindow(window_name, fullscreen ? cv::WINDOW_NORMAL : cv::WINDOW_AUTOSIZE);
+    if (fullscreen) {
         cv::setWindowProperty(window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
     }
 

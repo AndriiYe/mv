@@ -5,6 +5,7 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 build_dir="${BUILD_DIR:-build}"
 target="${TARGET:-cv}"
 start_delay="${START_DELAY:-2}"
+fullscreen="${CV_FULLSCREEN:-1}"
 log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/cv-tracker"
 log_file="$log_dir/run.log"
 
@@ -13,6 +14,7 @@ mkdir -p "$log_dir"
 {
     echo ""
     echo "==== $(date -Is) starting $project_dir/$build_dir/$target ===="
+    echo "CV_FULLSCREEN=$fullscreen"
     cd "$project_dir"
 
     if [ ! -x "./$build_dir/$target" ]; then
@@ -22,5 +24,6 @@ mkdir -p "$log_dir"
     fi
 
     sleep "$start_delay"
+    export CV_FULLSCREEN="$fullscreen"
     exec "./$build_dir/$target"
 } >> "$log_file" 2>&1

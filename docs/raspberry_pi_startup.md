@@ -28,7 +28,15 @@ sudo reboot
 The runner starts `./build/cv` from the project directory, so `config.json` can
 stay in the project root next to the build directory.
 
-To start the OpenCV window fullscreen, set this in `config.json`:
+The Pi startup runner sets `CV_FULLSCREEN=1` by default, so the OpenCV window
+starts fullscreen from desktop autostart. To disable fullscreen for one manual
+runner launch:
+
+```bash
+CV_FULLSCREEN=0 scripts/run-pi-cv.sh
+```
+
+For non-runner launches, set this in `config.json`:
 
 ```json
 "display": {
