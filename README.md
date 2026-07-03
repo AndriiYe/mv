@@ -20,6 +20,33 @@ environment:
 & cmd.exe /d /s /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 && "C:\Program Files\CMake\bin\cmake.EXE" -S c:/VScode_projects/cv -B c:/VScode_projects/cv/build -G Ninja -DCMAKE_BUILD_TYPE=Debug && "C:\Program Files\CMake\bin\cmake.EXE" --build c:/VScode_projects/cv/build --config Debug --target all --'
 ```
 
+## Deploy To Raspberry Pi
+
+The expected Raspberry Pi checkout is:
+
+```bash
+git clone git@github.com:AndriiYe/mv.git ~/mv
+```
+
+From the Windows PC, deploy and build on the Pi:
+
+```powershell
+.\scripts\deploy-pi.ps1
+```
+
+Deploy, build, and run:
+
+```powershell
+.\scripts\deploy-pi.ps1 -Run
+```
+
+The script pushes the current clean local branch to GitHub, SSHs to
+`pi@192.168.0.210`, runs `git pull --ff-only` in `/home/pi/mv`, configures with
+Ninja, and builds on the Pi. The same commands are available in VS Code as:
+
+- `Deploy: Raspberry Pi build`
+- `Deploy: Raspberry Pi build and run`
+
 ## Configure CRSF
 
 CRSF is configured through `config.json`. Windows serial ports look like this:

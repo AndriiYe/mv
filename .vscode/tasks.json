@@ -19,6 +19,41 @@
                 "isDefault": true
             },
             "detail": "Build the configured CMake project."
+        },
+        {
+            "type": "shell",
+            "label": "Deploy: Raspberry Pi build",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy-pi.ps1"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Push current branch, pull it on Raspberry Pi, configure, and build."
+        },
+        {
+            "type": "shell",
+            "label": "Deploy: Raspberry Pi build and run",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy-pi.ps1",
+                "-Run"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Push current branch, pull it on Raspberry Pi, configure, build, and run."
         }
     ],
     "version": "2.0.0"
