@@ -88,6 +88,20 @@ bool should_start_fullscreen(const DisplaySettings& display_settings) {
     return env_fullscreen.value_or(display_settings.fullscreen);
 }
 
+int make_window_flags(bool fullscreen) {
+    const int size_mode = fullscreen ? cv::WINDOW_NORMAL : cv::WINDOW_AUTOSIZE;
+    return size_mode | cv::WINDOW_GUI_NORMAL;
+}
+
+void apply_window_mode_after_show(const std::string& window_name, bool fullscreen) {
+    if (!fullscreen) {
+        return;
+    }
+
+    cv::setWindowProperty(window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+    cv::moveWindow(window_name, 0, 0);
+}
+
 bool move_screen_region_from_key(ScreenCapture& screen, int key) {
     constexpr int move_step = 10;
     constexpr int windows_arrow_left = 0x250000;
@@ -248,10 +262,8 @@ int main() {
 
     const std::string window_name = "Lucas-Kanade Optical Flow";
     const bool fullscreen = should_start_fullscreen(settings.display);
-    cv::namedWindow(window_name, fullscreen ? cv::WINDOW_NORMAL : cv::WINDOW_AUTOSIZE);
-    if (fullscreen) {
-        cv::setWindowProperty(window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-    }
+    cv::namedWindow(window_name, make_window_flags(fullscreen));
+    bool window_mode_applied = false;
 
     cv::Mat frame;
     cv::Mat gray;
@@ -503,6 +515,10 @@ int main() {
         }
 
         cv::imshow(window_name, output);
+        if (!window_mode_applied) {
+            apply_window_mode_after_show(window_name, fullscreen);
+            window_mode_applied = true;
+        }
 
         const int key = cv::waitKeyEx(1);
         if (key == 27 || key == 'q' || key == 'Q') {
