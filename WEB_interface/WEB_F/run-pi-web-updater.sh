@@ -19,7 +19,7 @@ export PI_WEB_PORT="${PI_WEB_PORT:-8080}"
 
 if [ ! -x "$venv_python" ]; then
     echo "Missing virtual environment Python: $venv_python" >&2
-    echo "Run: bash $app_dir/install-pi-web-autostart.sh" >&2
+    echo "Run: bash $app_dir/install-pi-web-systemd.sh" >&2
     exit 1
 fi
 

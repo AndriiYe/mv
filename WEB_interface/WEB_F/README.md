@@ -5,10 +5,8 @@ tracker project.
 
 It can:
 
-- show tracker, Git, build, and config status
-- stop/start/restart the tracker
-- pull the current Git branch and rebuild with CMake
-- update and restart in one button press
+- stop/start the tracker
+- rebuild with CMake
 - view, edit, upload, download, and validate `config.json`
 
 ## Raspberry Pi Setup
@@ -17,12 +15,12 @@ From the project checkout on the Raspberry Pi:
 
 ```bash
 cd ~/mv
-bash WEB_interface/WEB_F/install-pi-web-autostart.sh
+bash WEB_interface/WEB_F/install-pi-web-systemd.sh
 ```
 
 The installer creates a Python virtual environment, installs Bottle, creates
-`WEB_interface/WEB_F/pi-web-updater.env`, and registers a desktop autostart
-entry.
+`WEB_interface/WEB_F/pi-web-updater.env`, and registers `cv-web-updater.service`
+as a user systemd service.
 
 Set a password before using the UI on a shared network:
 
@@ -36,10 +34,10 @@ Uncomment and change:
 PI_WEB_PASSWORD=change-this-password
 ```
 
-Start it immediately without rebooting:
+Restart after changing the password:
 
 ```bash
-WEB_interface/WEB_F/run-pi-web-updater.sh
+systemctl --user restart cv-web-updater.service
 ```
 
 Then open:
@@ -54,23 +52,36 @@ or:
 http://<raspberry-pi-ip>:8080
 ```
 
+To keep the web updater running before desktop login, run once:
+
+```bash
+sudo loginctl enable-linger $USER
+```
+
+Useful service commands:
+
+```bash
+systemctl --user status cv-web-updater.service
+journalctl --user -u cv-web-updater.service -f
+systemctl --user restart cv-web-updater.service
+```
+
 ## Update Flow
 
 1. Edit code on the PC.
 2. Commit and push to GitHub.
-3. Open the Pi web UI.
-4. Press `Update + Restart`.
+3. Pull the new code on the Pi.
+4. Open the Pi web UI.
+5. Press `Build`, then `Start`.
 
-The Pi runs:
+The `Build` button runs:
 
 ```bash
-git fetch origin
-git pull --ff-only
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ```
 
-Then it starts `scripts/run-pi-cv.sh`.
+The `Start` button starts `scripts/run-pi-cv.sh`.
 
 `config.json` is ignored by Git in this project, so Pi-local settings are not
 overwritten by normal code updates.
@@ -118,9 +129,9 @@ CV_TRACKER_SERVICE_SCOPE=user
 
 ## Notes
 
-This project currently opens an OpenCV display window. For that reason the web
-updater is installed as desktop autostart, so commands launched from the UI can
-inherit the graphical login session.
+This project currently opens an OpenCV display window, so the tracker itself can
+still use desktop autostart. The web updater does not need the display and is
+better as a background user service.
 
 Keep this UI on a trusted local network only. It intentionally executes update
 and process-control commands for the Pi project.
