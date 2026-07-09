@@ -521,7 +521,7 @@ int main() {
         
         cv::putText(
             output,
-            cv::format("FPSS: %.1f", display_fps),
+            cv::format("FPS: %.1f", display_fps),
             cv::Point(350, 30),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
