@@ -37,6 +37,7 @@ config.json
 *.png
 *.jpg
 *.jpeg
+!WEB_interface/WEB_F/mvLogo.png
 
 # OS/editor noise
 Thumbs.db
