@@ -765,6 +765,7 @@ INDEX_HTML = r"""<!doctype html>
           <button class="primary" data-action="start">Start</button>
           <button class="danger" data-action="stop">Stop</button>
           <button class="blue" data-action="build">Build</button>
+          <button class="primary" data-action="update">Update</button>
         </div>
       </section>
     </div>

@@ -6,6 +6,7 @@ tracker project.
 It can:
 
 - stop/start the tracker
+- update from GitHub, rebuild, and restart in one button press
 - rebuild with CMake
 - view, edit, upload, download, and validate `config.json`
 
@@ -70,18 +71,34 @@ systemctl --user restart cv-web-updater.service
 
 1. Edit code on the PC.
 2. Commit and push to GitHub.
-3. Pull the new code on the Pi.
+3. Connect the Raspberry Pi to WiFi.
 4. Open the Pi web UI.
-5. Press `Build`, then `Start`.
+5. Press `Update`.
 
-The `Build` button runs:
+The `Update` button runs:
+
+```bash
+git fetch origin
+git pull --ff-only
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+scripts/run-pi-cv.sh
+```
+
+The actual sequence is:
+
+```text
+stop tracker -> download updates -> build -> start tracker
+```
+
+The `Build` button only runs:
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ```
 
-The `Start` button starts `scripts/run-pi-cv.sh`.
+The `Start` button only starts `scripts/run-pi-cv.sh`.
 
 `config.json` is ignored by Git in this project, so Pi-local settings are not
 overwritten by normal code updates.
