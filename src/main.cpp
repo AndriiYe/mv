@@ -135,6 +135,56 @@ bool move_screen_region_from_key(ScreenCapture& screen, int key) {
     }
 }
 
+float map_centered_rc_channel(
+    uint16_t value,
+    float low_value,
+    float center_value,
+    float high_value
+) {
+    constexpr float pwm_min = 1000.0F;
+    constexpr float pwm_center = 1500.0F;
+    constexpr float pwm_max = 2000.0F;
+
+    const float pwm = std::clamp(static_cast<float>(value), pwm_min, pwm_max);
+    if (pwm <= pwm_center) {
+        const float t = (pwm - pwm_min) / (pwm_center - pwm_min);
+        return low_value + (center_value - low_value) * t;
+    }
+
+    const float t = (pwm - pwm_center) / (pwm_max - pwm_center);
+    return center_value + (high_value - center_value) * t;
+}
+
+void apply_kalman_rc_tuning(
+    const std::shared_ptr<CrsfRcSender>& rc_sender,
+    Kalman_filtre& kalman_filtre
+) {
+    if (rc_sender == nullptr) {
+        return;
+    }
+
+    constexpr int r_channel = 12;
+    constexpr int q_channel = 13;
+    constexpr float r_low = 0.1F;
+    constexpr float r_center = 1.0F;
+    constexpr float r_high = 5.0F;
+    constexpr float q_low = 0.001F;
+    constexpr float q_center = 0.02F;
+    constexpr float q_high = 0.2F;
+
+    const uint16_t r_pwm = rc_sender->getChannel(r_channel);
+    const uint16_t q_pwm = rc_sender->getChannel(q_channel);
+    if (r_pwm == 0 || q_pwm == 0) {
+        return;
+    }
+
+    // Channel 12 tunes R/measurement noise. Channel 13 tunes Q/process noise.
+    // Centered knobs preserve the current default values.
+    const float measurement_noise = map_centered_rc_channel(r_pwm, r_low, r_center, r_high);
+    const float process_noise = map_centered_rc_channel(q_pwm, q_low, q_center, q_high);
+    kalman_filtre.set_noise(process_noise, measurement_noise);
+}
+
 class Cursor {
 public:
     using timer = std::chrono::steady_clock;
@@ -155,8 +205,8 @@ public:
         last_time_ = time_now;
         float dt = elapsed.count() / 1000.0f;   // seconds
 
-        const uint16_t p = neutral_if_missing(command_input_->getChannel(3));
-        const uint16_t r = neutral_if_missing(command_input_->getChannel(4));
+        const uint16_t p = neutral_if_missing(command_input_->getChannel(2));
+        const uint16_t r = neutral_if_missing(command_input_->getChannel(1));
 
         if (r > 1520) {
             const float x_speed = map(r - 1500.0f, 1, 500, 30, sens_); // px/sec
@@ -177,7 +227,7 @@ public:
         x_ = std::clamp(x_, 0.0f, static_cast<float>(frame_w_ - 1));
         y_ = std::clamp(y_, 0.0f, static_cast<float>(frame_h_ - 1));
 
-        const bool set_switch_high = neutral_if_missing(command_input_->getChannel(7)) > 1500;
+        const bool set_switch_high = neutral_if_missing(command_input_->getChannel(8)) > 1500;
         set_requested_ = set_switch_high && !was_set_switch_high_;
         was_set_switch_high_ = set_switch_high;
 
@@ -249,14 +299,19 @@ int main() {
 
     std::shared_ptr<CrsfRcSender> rc_sender;
     if (!settings.rc.device.empty()) {
-        rc_sender = std::make_shared<CrsfRcSender>(settings.rc.device, settings.rc.baudrate);
+        rc_sender = std::make_shared<CrsfRcSender>(
+            settings.rc.device,
+            settings.rc.baudrate,
+            settings.rc.tcp_mirror
+        );
         if (!rc_sender->start()) {
             std::cerr << "Warning: could not start CRSF RC sender on "
                       << settings.rc.device << "." << std::endl;
             rc_sender.reset();
         } else {
             std::cout << "CRSF RC sender active on " << settings.rc.device
-                      << " at " << settings.rc.baudrate << " baud." << std::endl;
+                      << " at " << settings.rc.baudrate << " baud. TCP mirror "
+                      << (settings.rc.tcp_mirror ? "enabled." : "disabled.") << std::endl;
         }
     }
 
@@ -308,18 +363,24 @@ int main() {
     tracker.update();
 
     KalmanFiltreConfig kalman_config;
-    kalman_config.process_noise = 0.02F;
-    kalman_config.measurement_noise = 1.0F;
-    kalman_config.estimate_error = 1.0F;
+    kalman_config.process_noise = settings.kalman.process_noise;
+    kalman_config.measurement_noise = settings.kalman.measurement_noise;
+    kalman_config.estimate_error = settings.kalman.estimate_error;
+    if (settings.kalman.tune_from_rc) {
+        std::cout << "Kalman RC tuning enabled: ch12=R, ch13=Q." << std::endl;
+    }
     Kalman_filtre kalman_filtre(kalman_config);
 
     PIDControllerConfig pid_config;
-    pid_config.kp = 1.2;
-    pid_config.ki = 0.0;
-    pid_config.kd = 0.05;
-    pid_config.output_limit = 300.0;
-    pid_config.integral_limit = 5000.0;
-    pid_config.tune_from_rc = false;
+    pid_config.kp = settings.pid.kp;
+    pid_config.ki = settings.pid.ki;
+    pid_config.kd = settings.pid.kd;
+    pid_config.output_limit = settings.pid.output_limit;
+    pid_config.integral_limit = settings.pid.integral_limit;
+    pid_config.tune_from_rc = settings.pid.tune_from_rc;
+    if (pid_config.tune_from_rc) {
+        std::cout << "PID RC tuning enabled: ch9=P, ch10=I, ch11=D." << std::endl;
+    }
     PIDController pidController(rc_sender, pid_config);
 
     //FPS counter
@@ -350,6 +411,9 @@ int main() {
 
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         const cv::Point2f delta = tracker.update();
+        if (settings.kalman.tune_from_rc) {
+            apply_kalman_rc_tuning(rc_sender, kalman_filtre);
+        }
         kalman_filtre.update(delta.x, delta.y);
 
         const cv::Rect roi = tracker.tracking_region();
@@ -378,9 +442,66 @@ int main() {
             cv::circle(output, point, 2, cv::Scalar(0, 0, 255), -1);
         }
 
+        const cv::Point output_center(output.cols / 2, output.rows / 2);
+        constexpr float speed_arrow_seconds = 0.20F;
+        constexpr float max_speed_arrow_length = 120.0F;
+        cv::Point2f speed_vector(
+            kalman_filtre.D_speed_x * speed_arrow_seconds,
+            kalman_filtre.D_speed_y * speed_arrow_seconds
+        );
+        const float speed_vector_length = std::sqrt(
+            speed_vector.x * speed_vector.x +
+            speed_vector.y * speed_vector.y
+        );
+        if (speed_vector_length > max_speed_arrow_length) {
+            speed_vector *= max_speed_arrow_length / speed_vector_length;
+        }
+
+        const cv::Point arrow_end(
+            cvRound(std::clamp(
+                static_cast<float>(output_center.x) + speed_vector.x,
+                0.0F,
+                static_cast<float>(output.cols - 1)
+            )),
+            cvRound(std::clamp(
+                static_cast<float>(output_center.y) + speed_vector.y,
+                0.0F,
+                static_cast<float>(output.rows - 1)
+            ))
+        );
+        cv::arrowedLine(
+            output,
+            output_center,
+            arrow_end,
+            cv::Scalar(0, 0, 255),
+            2,
+            cv::LINE_AA,
+            0,
+            0.25
+        );
+
+        constexpr int crosshair_half_size = 15;
+        constexpr int crosshair_thickness = 2;
+        cv::line(
+            output,
+            cv::Point(std::max(0, output_center.x - crosshair_half_size), output_center.y),
+            cv::Point(std::min(output.cols - 1, output_center.x + crosshair_half_size), output_center.y),
+            cv::Scalar(255, 255, 255),
+            crosshair_thickness,
+            cv::LINE_AA
+        );
+        cv::line(
+            output,
+            cv::Point(output_center.x, std::max(0, output_center.y - crosshair_half_size)),
+            cv::Point(output_center.x, std::min(output.rows - 1, output_center.y + crosshair_half_size)),
+            cv::Scalar(255, 255, 255),
+            crosshair_thickness,
+            cv::LINE_AA
+        );
+
         cv::putText(
             output,
-            "Tracking points: " + std::to_string(tracker.valid_next_points().size()) +
+            "TP: " + std::to_string(tracker.valid_next_points().size()) +
                 " / " + std::to_string(tracker_config.max_points),
             cv::Point(10, 30),
             cv::FONT_HERSHEY_SIMPLEX,
@@ -390,36 +511,27 @@ int main() {
         );
         cv::putText(
             output,
-            "recap = " + std::to_string(tracker.recap_counter()),
-            cv::Point(10, 60),
+            "recap: " + std::to_string(tracker.recap_counter()),
+            cv::Point(200, 30),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
-            cv::Scalar(0, 255, 255),
+            cv::Scalar(255, 255, 255),
             2
         );
-        cv::putText(
-            output,
-            "dx = " + std::to_string(delta.x) + " dy = " + std::to_string(delta.y),
-            cv::Point(10, 90),
-            cv::FONT_HERSHEY_SIMPLEX,
-            0.8,
-            cv::Scalar(255, 255, 0),
-            2
-        );
-        cv::putText(
-            output,
-            "kdx = " + std::to_string(kalman_filtre.D_speed_x) +
-                " kdy = " + std::to_string(kalman_filtre.D_speed_y),
-            cv::Point(10, 120),
-            cv::FONT_HERSHEY_SIMPLEX,
-            0.8,
-            cv::Scalar(255, 180, 0),
-            2
-        );
+        
         cv::putText(
             output,
             cv::format("FPS: %.1f", display_fps),
-            cv::Point(10, 150),
+            cv::Point(350, 30),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.8,
+            cv::Scalar(255, 255, 255),
+            2
+        );
+        cv::putText(
+            output,
+            cv::format("R: %.3f Q: %.4f", kalman_filtre.measurement_noise(), kalman_filtre.process_noise()),
+            cv::Point(10, 60),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
             cv::Scalar(0, 255, 0),
@@ -427,36 +539,27 @@ int main() {
         );
         cv::putText(
             output,
-            cv::format("pid x=%.1f y=%.1f", pidController.output_x(), pidController.output_y()),
-            cv::Point(10, 180),
+            cv::format(
+                "Pitch: %u Roll: %u",
+                static_cast<unsigned int>(pidController.output_pitch_channel()),
+                static_cast<unsigned int>(pidController.output_roll_channel())
+            ),
+            cv::Point(10, 210),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
             cv::Scalar(0, 180, 255),
             2
         );
-        if (rc_sender != nullptr) {
-            cv::putText(
-                output,
-                "P = " + std::to_string(rc_sender->getChannel(3)) + " R = " + std::to_string(rc_sender->getChannel(4)),
-                cv::Point(50, 200),
-                cv::FONT_HERSHEY_SIMPLEX,
-                0.8,
-                cv::Scalar(255, 255, 0),
-                2
-            );
-        }
-        if (capture_settings.use_screen_region) {
-            cv::putText(
-                output,
-                "screen left=" + std::to_string(screen.left()) +
-                    " top=" + std::to_string(screen.top()),
-                cv::Point(10, 230),
-                cv::FONT_HERSHEY_SIMPLEX,
-                0.8,
-                cv::Scalar(120, 255, 120),
-                2
-            );
-        }
+        cv::putText(
+            output,
+            cv::format("kp: %.2f ki: %.3f kd: %.2f", pidController.kp(), pidController.ki(), pidController.kd()),
+            cv::Point(10, 100),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.8,
+            cv::Scalar(0, 0, 255),
+            2
+        );
+        
         if (cursor != nullptr) {
             const cv::Point cursor_position = cursor->update();
             if (cursor->consume_set_request()) {
@@ -466,48 +569,10 @@ int main() {
                 tracker.update();
             }
 
-            constexpr float speed_arrow_seconds = 0.20F;
-            constexpr float max_speed_arrow_length = 120.0F;
-            cv::Point2f speed_vector(
-                kalman_filtre.D_speed_x * speed_arrow_seconds,
-                kalman_filtre.D_speed_y * speed_arrow_seconds
-            );
-            const float speed_vector_length = std::sqrt(
-                speed_vector.x * speed_vector.x +
-                speed_vector.y * speed_vector.y
-            );
-            if (speed_vector_length > max_speed_arrow_length) {
-                speed_vector *= max_speed_arrow_length / speed_vector_length;
-            }
-
-            const cv::Point2f cursor_center(
-                static_cast<float>(cursor_position.x),
-                static_cast<float>(cursor_position.y)
-            );
-            const cv::Point arrow_start = cv::Point(
-                cvRound(std::clamp(cursor_center.x - speed_vector.x * 0.5F, 0.0F, static_cast<float>(output.cols - 1))),
-                cvRound(std::clamp(cursor_center.y - speed_vector.y * 0.5F, 0.0F, static_cast<float>(output.rows - 1)))
-            );
-            const cv::Point arrow_end = cv::Point(
-                cvRound(std::clamp(cursor_center.x + speed_vector.x * 0.5F, 0.0F, static_cast<float>(output.cols - 1))),
-                cvRound(std::clamp(cursor_center.y + speed_vector.y * 0.5F, 0.0F, static_cast<float>(output.rows - 1)))
-            );
-
-            cv::arrowedLine(
-                output,
-                arrow_start,
-                arrow_end,
-                cv::Scalar(0, 0, 255),
-                2,
-                cv::LINE_AA,
-                0,
-                0.25
-            );
-
             cv::circle(
                 output,
                 cursor_position,
-                4,
+                6,
                 cv::Scalar(0, 200, 255),
                 -1
             );

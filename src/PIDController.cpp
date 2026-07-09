@@ -2,6 +2,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
+
+namespace {
+
+constexpr double kPwmMin = 1000.0;
+constexpr double kPwmNeutral = 1500.0;
+constexpr double kPwmMax = 2000.0;
+constexpr int kOutputHorizontalChannel = 1;
+constexpr int kOutputVerticalChannel = 2;
+constexpr int kTunePChannel = 9;
+constexpr int kTuneIChannel = 10;
+constexpr int kTuneDChannel = 11;
+constexpr double kTunePDivisor = 500.0;  // 1000-2000 us -> 0.0-2.0
+constexpr double kTuneIDivisor = 2000.0; // 1000-2000 us -> 0.0-0.5
+constexpr double kTuneDDivisor = 1000.0; // 1000-2000 us -> 0.0-1.0
+
+} // namespace
 
 PIDController::PIDController(std::shared_ptr<CrsfRcSender> rc, const PIDControllerConfig& config)
     : rc_(std::move(rc)),
@@ -44,6 +61,8 @@ void PIDController::update(double current_x, double current_y, double speed_x, d
         config_.integral_limit
     );
 
+    // The D term uses measured target speed instead of a finite difference of
+    // error. This avoids derivative spikes when the tracker is reset/reacquired.
     output_x_ = config_.kp * error_x +
         config_.ki * integral_x_ -
         config_.kd * speed_x;
@@ -71,6 +90,14 @@ double PIDController::output_y() const {
     return output_y_;
 }
 
+uint16_t PIDController::output_roll_channel() const {
+    return output_roll_channel_;
+}
+
+uint16_t PIDController::output_pitch_channel() const {
+    return output_pitch_channel_;
+}
+
 double PIDController::kp() const {
     return config_.kp;
 }
@@ -84,15 +111,11 @@ double PIDController::kd() const {
 }
 
 uint16_t PIDController::pwm_from_output(double output) {
-    return static_cast<uint16_t>(std::lround(clamp(1500.0 + output, 1000.0, 2000.0)));
+    return static_cast<uint16_t>(std::lround(clamp(kPwmNeutral + output, kPwmMin, kPwmMax)));
 }
 
 double PIDController::clamp(double value, double min_value, double max_value) {
     return std::clamp(value, min_value, max_value);
-}
-
-uint16_t PIDController::neutral_if_missing(uint16_t value) {
-    return value == 0 ? 1500 : value;
 }
 
 void PIDController::set_from_rc() {
@@ -100,21 +123,30 @@ void PIDController::set_from_rc() {
         return;
     }
 
-    const double ch8 = static_cast<double>(neutral_if_missing(rc_->getChannel(8)));
-    const double ch9 = static_cast<double>(neutral_if_missing(rc_->getChannel(9)));
-    const double ch10 = static_cast<double>(neutral_if_missing(rc_->getChannel(10)));
+    const uint16_t p_channel = rc_->getChannel(kTunePChannel);
+    const uint16_t i_channel = rc_->getChannel(kTuneIChannel);
+    const uint16_t d_channel = rc_->getChannel(kTuneDChannel);
+    if (p_channel == 0 || i_channel == 0 || d_channel == 0) {
+        return;
+    }
 
-    config_.kp = (ch8 - 1000.0) / 500.0;
-    config_.ki = (ch9 - 1000.0) / 2000.0;
-    config_.kd = (ch10 - 1000.0) / 1000.0;
+    // Aux channels act as absolute gain knobs. Keep channel 10 low at first:
+    // even small integral gain can accumulate while the target is off-center.
+    config_.kp = (static_cast<double>(p_channel) - kPwmMin) / kTunePDivisor;
+    config_.ki = (static_cast<double>(i_channel) - kPwmMin) / kTuneIDivisor;
+    config_.kd = (static_cast<double>(d_channel) - kPwmMin) / kTuneDDivisor;
 }
 
 void PIDController::update_rc(double x, double y) {
+    output_roll_channel_ = pwm_from_output(-x);
+    output_pitch_channel_ = pwm_from_output(-y);
+
     if (rc_ == nullptr) {
         return;
     }
 
-    // Cursor uses channel 4 for horizontal movement and channel 3 for vertical.
-    rc_->setChennel(4, pwm_from_output(x));
-    rc_->setChennel(3, pwm_from_output(y));
+    // P/R servos expect the opposite sign from the image-space controller.
+    // Keep the PID math/display unchanged and invert only at the RC boundary.
+    rc_->setChennel(kOutputHorizontalChannel, output_roll_channel_);
+    rc_->setChennel(kOutputVerticalChannel, output_pitch_channel_);
 }

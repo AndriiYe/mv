@@ -115,9 +115,10 @@ void CrsfChannelBank::fill(uint16_t value) {
     store(values);
 }
 
-CrsfRcSender::CrsfRcSender(const std::string& device, int baudrate)
+CrsfRcSender::CrsfRcSender(const std::string& device, int baudrate, bool tcp_mirror_enabled)
     : device_(device),
-      baudrate_(baudrate) {
+      baudrate_(baudrate),
+      tcp_mirror_enabled_(tcp_mirror_enabled) {
     tx_channels_.fill(1500);
     rx_channels_.fill(0);
 }
@@ -553,7 +554,9 @@ void CrsfRcSender::sendPacket(const std::array<uint16_t, 16>& channels_us) {
         std::cerr << "Failed to write CRSF RC packet" << std::endl;
     }
 
-    tcp_packet_sender_.sendPacket(frame.data(), frame.size());
+    if (tcp_mirror_enabled_) {
+        tcp_packet_sender_.sendPacket(frame.data(), frame.size());
+    }
 }
 
 void CrsfRcSender::processFrame(const uint8_t* frame, size_t frame_size) {

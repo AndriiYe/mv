@@ -3,8 +3,14 @@
 #include <chrono>
 
 struct KalmanFiltreConfig {
+    // Q/process_noise controls how quickly the speed estimate is allowed to
+    // change. Higher Q follows motion faster but passes more noise.
     float process_noise = 0.01F;
+
+    // R/measurement_noise controls how much to trust measured optical-flow
+    // speed. Higher R gives smoother output but adds more lag.
     float measurement_noise = 1.0F;
+
     float estimate_error = 1.0F;
     float initial_speed_x = 0.0F;
     float initial_speed_y = 0.0F;
@@ -17,6 +23,10 @@ public:
     explicit Kalman_filtre(const KalmanFiltreConfig& config);
 
     void update(float dx, float dy);
+    void set_noise(float process_noise, float measurement_noise);
+
+    float process_noise() const;
+    float measurement_noise() const;
 
     float D_speed_x = 0.0F;
     float D_speed_y = 0.0F;

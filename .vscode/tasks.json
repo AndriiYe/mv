@@ -1,12 +1,14 @@
 {
     "tasks": [
         {
-            "type": "shell",
-            "label": "CMake: build",
-            "command": "cmake",
+            "type": "process",
+            "label": "MSVC: build",
+            "command": "cmd.exe",
             "args": [
-                "--build",
-                "${workspaceFolder}/build"
+                "/d",
+                "/s",
+                "/c",
+                "\"C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/Tools/VsDevCmd.bat\" -arch=x64 && \"C:/Program Files/CMake/bin/cmake.EXE\" --build \"${workspaceFolder}/build\" --config Debug --target all --"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -18,7 +20,43 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Build the configured CMake project."
+            "detail": "Build the configured CMake project with the MSVC developer environment."
+        },
+        {
+            "type": "process",
+            "label": "MSVC: configure",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/s",
+                "/c",
+                "\"C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/Tools/VsDevCmd.bat\" -arch=x64 && \"C:/Program Files/CMake/bin/cmake.EXE\" -S \"${workspaceFolder}\" -B \"${workspaceFolder}/build\" -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "detail": "Configure the default CMake build directory with the MSVC developer environment."
+        },
+        {
+            "type": "process",
+            "label": "MSVC: configure and build",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/s",
+                "/c",
+                "\"C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/Tools/VsDevCmd.bat\" -arch=x64 && \"C:/Program Files/CMake/bin/cmake.EXE\" -S \"${workspaceFolder}\" -B \"${workspaceFolder}/build\" -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Debug && \"C:/Program Files/CMake/bin/cmake.EXE\" --build \"${workspaceFolder}/build\" --config Debug --target all --"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "detail": "Configure and build the CMake project with the MSVC developer environment."
         },
         {
             "type": "shell",

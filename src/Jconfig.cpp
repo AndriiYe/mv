@@ -117,6 +117,34 @@ void read_config_int(
     value_node >> target;
 }
 
+void read_config_double(
+    const cv::FileNode& object_node,
+    const std::string& key,
+    double& target,
+    const std::string& config_path
+) {
+    const cv::FileNode value_node = object_node[key];
+    if (value_node.empty()) {
+        return;
+    }
+    if (!value_node.isInt() && !value_node.isReal()) {
+        throw std::runtime_error("Config file '" + config_path + "' field '" + key + "' must be a number.");
+    }
+
+    value_node >> target;
+}
+
+void read_config_float(
+    const cv::FileNode& object_node,
+    const std::string& key,
+    float& target,
+    const std::string& config_path
+) {
+    double value = target;
+    read_config_double(object_node, key, value, config_path);
+    target = static_cast<float>(value);
+}
+
 void read_config_bool(
     const cv::FileNode& object_node,
     const std::string& key,
@@ -246,6 +274,8 @@ void apply_rc_config(AppSettings& settings, const cv::FileNode& rc_node, const s
 
     read_config_int(rc_node, "baudrate", settings.rc.baudrate, config_path);
     read_config_int(rc_node, "baud", settings.rc.baudrate, config_path);
+    read_config_bool(rc_node, "tcp_mirror", settings.rc.tcp_mirror, config_path);
+    read_config_bool(rc_node, "mirror_tcp_packets", settings.rc.tcp_mirror, config_path);
 }
 
 void apply_display_config(AppSettings& settings, const cv::FileNode& display_node, const std::string& config_path) {
@@ -254,6 +284,32 @@ void apply_display_config(AppSettings& settings, const cv::FileNode& display_nod
     }
 
     read_config_bool(display_node, "fullscreen", settings.display.fullscreen, config_path);
+}
+
+void apply_pid_config(AppSettings& settings, const cv::FileNode& pid_node, const std::string& config_path) {
+    if (!pid_node.isMap()) {
+        throw std::runtime_error("Config file '" + config_path + "' field 'pid' must be an object.");
+    }
+
+    read_config_double(pid_node, "kp", settings.pid.kp, config_path);
+    read_config_double(pid_node, "ki", settings.pid.ki, config_path);
+    read_config_double(pid_node, "kd", settings.pid.kd, config_path);
+    read_config_double(pid_node, "output_limit", settings.pid.output_limit, config_path);
+    read_config_double(pid_node, "integral_limit", settings.pid.integral_limit, config_path);
+    read_config_bool(pid_node, "tune_from_rc", settings.pid.tune_from_rc, config_path);
+}
+
+void apply_kalman_config(AppSettings& settings, const cv::FileNode& kalman_node, const std::string& config_path) {
+    if (!kalman_node.isMap()) {
+        throw std::runtime_error("Config file '" + config_path + "' field 'kalman' must be an object.");
+    }
+
+    read_config_float(kalman_node, "process_noise", settings.kalman.process_noise, config_path);
+    read_config_float(kalman_node, "q", settings.kalman.process_noise, config_path);
+    read_config_float(kalman_node, "measurement_noise", settings.kalman.measurement_noise, config_path);
+    read_config_float(kalman_node, "r", settings.kalman.measurement_noise, config_path);
+    read_config_float(kalman_node, "estimate_error", settings.kalman.estimate_error, config_path);
+    read_config_bool(kalman_node, "tune_from_rc", settings.kalman.tune_from_rc, config_path);
 }
 
 } // namespace
@@ -296,6 +352,16 @@ AppSettings Jconfig::load() const {
     const cv::FileNode display_node = config["display"];
     if (!display_node.empty()) {
         apply_display_config(settings, display_node, config_path_);
+    }
+
+    const cv::FileNode pid_node = config["pid"];
+    if (!pid_node.empty()) {
+        apply_pid_config(settings, pid_node, config_path_);
+    }
+
+    const cv::FileNode kalman_node = config["kalman"];
+    if (!kalman_node.empty()) {
+        apply_kalman_config(settings, kalman_node, config_path_);
     }
 
     return settings;

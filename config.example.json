@@ -24,10 +24,28 @@
     "crsf_fields": {
       "device": "Serial port, for example COM47 on Windows or /dev/ttyAMA0 on Raspberry Pi.",
       "baudrate": "CRSF baud rate. Common value is 420000.",
-      "baud": "Alias for baudrate."
+      "baud": "Alias for baudrate.",
+      "tcp_mirror": "Set false to disable the local TCP mirror on 127.0.0.1:4005.",
+      "mirror_tcp_packets": "Alias for tcp_mirror."
     },
     "display_fields": {
       "fullscreen": "Set to true to open the OpenCV preview window fullscreen."
+    },
+    "pid_fields": {
+      "kp": "Proportional gain applied to target offset in pixels.",
+      "ki": "Integral gain applied to accumulated target offset.",
+      "kd": "Derivative gain applied to measured target speed.",
+      "output_limit": "Maximum PID command added around 1500 us RC neutral.",
+      "integral_limit": "Maximum absolute accumulated integral error.",
+      "tune_from_rc": "Set true to read live P/I/D gains from CRSF RX channels 9/10/11."
+    },
+    "kalman_fields": {
+      "process_noise": "Q/process noise. Higher values follow motion faster and pass more noise.",
+      "q": "Alias for process_noise.",
+      "measurement_noise": "R/measurement noise. Higher values smooth more and add more lag.",
+      "r": "Alias for measurement_noise.",
+      "estimate_error": "Initial filter estimate error.",
+      "tune_from_rc": "Set true to read live R/Q values from CRSF RX channels 12/13."
     },
     "valid_config_fields": [
       "capture.mode",
@@ -44,7 +62,21 @@
       "crsf.device",
       "crsf.baudrate",
       "crsf.baud",
-      "display.fullscreen"
+      "crsf.tcp_mirror",
+      "crsf.mirror_tcp_packets",
+      "display.fullscreen",
+      "pid.kp",
+      "pid.ki",
+      "pid.kd",
+      "pid.output_limit",
+      "pid.integral_limit",
+      "pid.tune_from_rc",
+      "kalman.process_noise",
+      "kalman.q",
+      "kalman.measurement_noise",
+      "kalman.r",
+      "kalman.estimate_error",
+      "kalman.tune_from_rc"
     ],
     "examples": {
       "camera": "Set capture.mode to camera and camera_index to 0.",
@@ -67,12 +99,29 @@
     "screen_height": 600
   },
   "crsf": {
-    "_comment": "Leave device empty to disable CRSF.",
+    "_comment": "Leave device empty to disable CRSF. Set tcp_mirror false on Raspberry Pi if no local TCP debug client is needed.",
     "device": "COM47",
-    "baudrate": 420000
+    "baudrate": 420000,
+    "tcp_mirror": true
   },
   "display": {
     "_comment": "Set fullscreen to true on Raspberry Pi desktop autostart.",
     "fullscreen": false
+  },
+  "pid": {
+    "_comment": "Set tune_from_rc to true to tune gains live with CRSF RX ch9=P, ch10=I, ch11=D.",
+    "kp": 1.2,
+    "ki": 0.0,
+    "kd": 0.05,
+    "output_limit": 300.0,
+    "integral_limit": 5000.0,
+    "tune_from_rc": false
+  },
+  "kalman": {
+    "_comment": "Set tune_from_rc to true to tune filter live with CRSF RX ch12=R, ch13=Q.",
+    "process_noise": 0.02,
+    "measurement_noise": 1.0,
+    "estimate_error": 1.0,
+    "tune_from_rc": false
   }
 }

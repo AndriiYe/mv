@@ -44,13 +44,18 @@ struct CrsfChannelBank {
 // Opens one serial port for CRSF and runs one background I/O loop:
 // - reads available CRSF bytes from the port
 // - sends RC_CHANNELS_PACKED every 20 ms
+// - optionally mirrors transmitted packets to a local TCP debug client
 //
 // Main/OpenCV code only calls setChennel() and getChannel(). Those functions
 // touch atomics and return immediately, so serial I/O cannot interrupt the CV
 // frame loop.
 class CrsfRcSender {
 public:
-    explicit CrsfRcSender(const std::string& device, int baudrate = 420000);
+    explicit CrsfRcSender(
+        const std::string& device,
+        int baudrate = 420000,
+        bool tcp_mirror_enabled = true
+    );
     ~CrsfRcSender();
 
     bool start();
@@ -85,6 +90,7 @@ private:
 private:
     std::string device_;
     int baudrate_;
+    bool tcp_mirror_enabled_;
 
 #ifdef _WIN32
     void* serial_handle_ = nullptr;

@@ -22,16 +22,35 @@ struct CaptureSettings {
 struct RcSettings {
     std::string device;
     int baudrate = 420000;
+    bool tcp_mirror = true;
 };
 
 struct DisplaySettings {
     bool fullscreen = false;
 };
 
+struct PidSettings {
+    double kp = 1.2;
+    double ki = 0.0;
+    double kd = 0.05;
+    double output_limit = 300.0;
+    double integral_limit = 5000.0;
+    bool tune_from_rc = false;
+};
+
+struct KalmanSettings {
+    float process_noise = 0.02F;
+    float measurement_noise = 1.0F;
+    float estimate_error = 1.0F;
+    bool tune_from_rc = false;
+};
+
 struct AppSettings {
     CaptureSettings capture;
     RcSettings rc;
     DisplaySettings display;
+    PidSettings pid;
+    KalmanSettings kalman;
 };
 
 class Jconfig {

@@ -63,7 +63,8 @@ Set `capture.mode` to `pi-camera` in `config.json`:
   },
   "crsf": {
     "device": "",
-    "baudrate": 420000
+    "baudrate": 420000,
+    "tcp_mirror": false
   }
 }
 ```
