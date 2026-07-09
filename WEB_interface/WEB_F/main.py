@@ -303,9 +303,10 @@ def start_tracker() -> None:
     if not runner.exists():
         raise JobError(f"Runner not found: {runner}")
 
-    append_log(f"$ {command_text([runner])}")
+    runner_command = ["bash", str(runner)]
+    append_log(f"$ {command_text(runner_command)}")
     subprocess.Popen(
-        [str(runner)],
+        runner_command,
         cwd=str(PROJECT_DIR),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
