@@ -20,6 +20,19 @@ environment:
 & cmd.exe /d /s /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 && "C:\Program Files\CMake\bin\cmake.EXE" -S c:/VScode_projects/cv -B c:/VScode_projects/cv/build -G Ninja -DCMAKE_BUILD_TYPE=Debug && "C:\Program Files\CMake\bin\cmake.EXE" --build c:/VScode_projects/cv/build --config Debug --target all --'
 ```
 
+## One Button GitHub Update From PC
+
+Double-click:
+
+```text
+update-github.bat
+```
+
+The script stages Git-visible project changes, asks for a commit message, shows
+the files that will be committed, commits, and pushes the current branch to
+GitHub. After that, use the Raspberry Pi web UI `Update` button to pull, build,
+and restart the tracker.
+
 ## Deploy To Raspberry Pi
 
 The expected Raspberry Pi checkout is:
