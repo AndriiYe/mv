@@ -50,33 +50,68 @@ void PIDController::update(double current_x, double current_y, double speed_x, d
     const double error_x = -current_x;
     const double error_y = -current_y;
 
-    integral_x_ = clamp(
-        integral_x_ + error_x * dt,
-        -config_.integral_limit,
-        config_.integral_limit
-    );
-    integral_y_ = clamp(
-        integral_y_ + error_y * dt,
-        -config_.integral_limit,
-        config_.integral_limit
-    );
-
     // The D term uses measured target speed instead of a finite difference of
     // error. This avoids derivative spikes when the tracker is reset/reacquired.
-    output_x_ = config_.kp * error_x +
-        config_.ki * integral_x_ -
-        config_.kd * speed_x;
-    output_y_ = config_.kp * error_y +
-        config_.ki * integral_y_ -
-        config_.kd * speed_y;
+    // Integrate only when doing so does not push an already-saturated output
+    // farther into saturation. This is especially important during live RC
+    // tuning: otherwise error stored while ki is zero can pin an axis for a
+    // long time as soon as the ki knob is raised.
+    const auto update_axis = [this, dt](double error, double speed, double& integral) {
+        constexpr double kMinIntegralGain = 1e-9;
+        const double proportional_and_derivative =
+            config_.kp * error - config_.kd * speed;
 
-    output_x_ = clamp(output_x_, -config_.output_limit, config_.output_limit);
-    output_y_ = clamp(output_y_, -config_.output_limit, config_.output_limit);
+        if (config_.ki <= kMinIntegralGain) {
+            integral = 0.0;
+            return clamp(
+                proportional_and_derivative,
+                -config_.output_limit,
+                config_.output_limit
+            );
+        }
+
+        const double candidate_integral = clamp(
+            integral + error * dt,
+            -config_.integral_limit,
+            config_.integral_limit
+        );
+        const double candidate_output =
+            proportional_and_derivative + config_.ki * candidate_integral;
+
+        const bool inside_limit = std::abs(candidate_output) <= config_.output_limit;
+        const bool unwinds_high_saturation =
+            candidate_output > config_.output_limit && error < 0.0;
+        const bool unwinds_low_saturation =
+            candidate_output < -config_.output_limit && error > 0.0;
+        if (inside_limit || unwinds_high_saturation || unwinds_low_saturation) {
+            integral = candidate_integral;
+        }
+
+        return clamp(
+            proportional_and_derivative + config_.ki * integral,
+            -config_.output_limit,
+            config_.output_limit
+        );
+    };
+
+    output_x_ = update_axis(error_x, speed_x, integral_x_);
+    output_y_ = update_axis(error_y, speed_y, integral_y_);
 
     update_rc(output_x_, output_y_);
 }
 
 void PIDController::setK(double p, double i, double d) {
+    constexpr double kMinIntegralGain = 1e-9;
+    if (std::abs(i - config_.ki) > kMinIntegralGain) {
+        if (config_.ki > kMinIntegralGain && i > kMinIntegralGain) {
+            // Preserve the current integral output when its gain changes.
+            integral_x_ = clamp(integral_x_ * config_.ki / i, -config_.integral_limit, config_.integral_limit);
+            integral_y_ = clamp(integral_y_ * config_.ki / i, -config_.integral_limit, config_.integral_limit);
+        } else {
+            integral_x_ = 0.0;
+            integral_y_ = 0.0;
+        }
+    }
     config_.kp = p;
     config_.ki = i;
     config_.kd = d;
@@ -132,9 +167,10 @@ void PIDController::set_from_rc() {
 
     // Aux channels act as absolute gain knobs. Keep channel 10 low at first:
     // even small integral gain can accumulate while the target is off-center.
-    config_.kp = (static_cast<double>(p_channel) - kPwmMin) / kTunePDivisor;
-    config_.ki = (static_cast<double>(i_channel) - kPwmMin) / kTuneIDivisor;
-    config_.kd = (static_cast<double>(d_channel) - kPwmMin) / kTuneDDivisor;
+    const double kp = (static_cast<double>(p_channel) - kPwmMin) / kTunePDivisor;
+    const double ki = (static_cast<double>(i_channel) - kPwmMin) / kTuneIDivisor;
+    const double kd = (static_cast<double>(d_channel) - kPwmMin) / kTuneDDivisor;
+    setK(kp, ki, kd);
 }
 
 void PIDController::update_rc(double x, double y) {
